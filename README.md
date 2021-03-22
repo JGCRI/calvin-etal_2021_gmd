@@ -1,39 +1,35 @@
 <!--your zenodo badge here-->
 
 # calvin-etal_2021_gmd
-Modeling Land Use and Land Cover Change: Using a Hindcast to Estimate Economic Parameters in gcamland v2.0
+**Modeling Land Use and Land Cover Change: Using a Hindcast to Estimate Economic Parameters in gcamland v2.0**
+
+Katherine V. Calvin<sup> 1\*</sup>, Abigail Snyder<sup> 1</sup>, Xin Zhao<sup> 1</sup>, Marshall Wise<sup> 1</sup>
+
+<sup>1 </sup> Joint Global Change Research Institute, Pacific Northwest National Laboratory, College Park, MD, 20740, USA  
+\* corresponding author: katherine.calvin@pnnl.gov
 
 ## Abstract
-Your abstract here.
-
-## Code reference
-References for each minted software release for all code involved.  If you have modified a codebase that is outside of a formal release, and the modifications are not planned on being merged back into a version, fork the parent repository and add a `.<shortname>` to the version number of the parent and conduct your own name.  For example, `v1.2.5.hydro`.
-
-#### Example:
-
-Human, I.M. (2020, January 1). human/myrepo: v1.2.5.hydro (Version v1.2.5.hydro). Zenodo. https://doi.org/some-doi-number
+The world has experienced a vast increase in agricultural production since the middle of the last century; however, agricultural land area has expanded at a lower rate than production. Future changes in land use and cover have important implications not only for agriculture but for energy, water use, and climate. However, these future changes are driven by a complex combination of uncertain socioeconomic, technological, and other factors. Estimates of future land use and land cover differ significantly across economic models of agricultural production and efforts to evaluate these economic models over history have been limited. In this study, we use an economic model of land use and land cover change, gcamland, to systematically explore a large set of model parameter perturbations and alternate methods for forming expectations about uncertain crop yields and prices. We run gcamland simulations with these parameter sets over the historical period in the United States to quantify land use and land cover, determine how well the model reproduces observations, and to identify parameter combinations that improve the model. We find that an adaptive expectation approach minimizes the error between simulated outputs and observations, with parameters that suggest that for most crops landowners put a significant weight on previous information. Interestingly, for corn, where ethanol policies have led to a rapid growth in demand, the resulting parameters show that a larger weight is placed on more recent information. We examine the change in model parameters as the metric of model error changes, finding that the measure of model fitness affects the choice of parameter sets. Finally, we identify how the methodology and results used in this study could be used in future studies by GCAM or other models.
 
 ## Journal reference
-Update your journal reference here after acceptance.
+Calvin, K. V., Snyder, A., Zhao, X., and Wise, M.: Modeling Land Use and Land Cover Change: Using a Hindcast to Estimate Economic Parameters in gcamland v2.0, Geosci. Model Dev. Discuss. [preprint], https://doi.org/10.5194/gmd-2020-338, in review, 2020.
 
 ## Data reference
-
-### Input data
-Reference for each minted data source for your input data.  
-
-#### Example:
-
-Human, I.M. (2020). My dataset name [Data set]. DataHub. https://doi.org/some-doi-number
+All `gcamland` input data is contained in the `gcamland` repository. See data in v2.0 as cited in the contributing models section below.
 
 ### Output data
 Reference for each minted data source for your output data.  
 
 ## Contributing models
-| Model | Version | Repository Link | DOI |
-|-------|---------|-----------------|-----|
-| <model 1> | <version> | <link to code repository> | <link to DOI dataset> |
-| <model 2> | <version> | <link to code repository> | <link to DOI dataset> |
+| Model | Version | Repository Link | DOI | Notes |
+|-------|---------|-----------------|-----| ----- |
+| `gcamland` | v2.0 | https://github.com/JGCRI/gcamland/releases/tag/v2.0 | http://doi.org/10.5281/zenodo.4071797 | General research in the paper |
+| `gcamland` | NA | https://github.com/JGCRI/gcamland/commit/25e44761dc27aaaf79de444b7b212a8223a243e8 | NA | The large ensemble was created from one hash prior to the v2.0 release. The only difference between that hash and the final is that we renamed the expectation types to match the terminology in the paper. |
 
 ## Reproduce my experiement
-Fill in detailed info here or link to other documentation that is a thorough walkthrough of how to use what is in this repository to reproduce your experiment.
 
+Use the code in this repository to reproduce this experiment.
+
+1. `run_scripts`:  Used to generate the large ensemble
+2. `postprocessing_scripts`:  Used to combine outputs for use in figures. The outputs from these scripts have to go in the `1-data` directory with the correct names to be functional.  
+3. `figures`:  Used to create all figures for the paper
