@@ -1,0 +1,547 @@
+---
+title: "Results and Analysis for gcamland paper"
+output: bookdown::word_document2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(gridExtra)
+library(cowplot)
+```
+
+```{r global-assumptions, echo=FALSE}
+CROPS_TO_PLOT <- c("Corn", "Wheat", "OilCrop", "OtherGrain")
+ALL_CROPS_NF <- c("Corn", "FiberCrop", "MiscCrop", "OilCrop", "OtherGrain",  "Rice", "Root_Tuber", "SugarCrop",  "Wheat")
+CROP_GROUP1 <- "Corn, OilCrop"
+CROP_GROUP2 <- "Wheat, OtherGrain"
+CROP_GROUP3 <- "All Other Crops"
+SCENARIOS_TO_PLOT <- c("Adaptive", "Linear", "Perfect", "Hybrid Linear Adaptive") # Could also include `GCAM_Default`
+theme_set(theme_bw())
+```
+
+```{r global-data, echo=FALSE}
+# Read data
+best_models <- read.csv("./2-process/best_models.csv")
+best_output <- read.csv("./2-process/best_output.csv")
+all_outputs <- readRDS("./1-data/output_summarized.rds")
+obs_data <- read.csv("./2-process/obs_data.csv")
+
+# Rename expectations
+best_models %>%
+  mutate(expectation.type = sub("LaggedCurr", "Hybrid Perfect Adaptive", expectation.type),
+         expectation.type = sub("Lagged", "Adaptive", expectation.type),
+         expectation.type = sub("Mixed", "Hybrid Linear Adaptive", expectation.type),
+         expectation.type = sub("HybridLinearAdaptive", "Hybrid Linear Adaptive", expectation.type)) ->
+  best_models
+best_output %>%
+  mutate(scenario = sub("Best_", "", scenario),
+         scenario = sub("LaggedCurr", "Hybrid Perfect Adaptive", scenario),
+         scenario = sub("Lagged", "Adaptive", scenario),
+         scenario = sub("Mixed", "Hybrid Linear Adaptive", scenario),
+         scenario = sub("HybridLinearAdaptive", "Hybrid Linear Adaptive", scenario)) ->
+  best_output
+
+# Filter for the expectations included in this paper
+# Note: Hybrid Perfect Expectations may make sense in the future as a imperfect forecast, but 
+#       it has little justification for historical analysis
+best_models %>%
+  filter(expectation.type %in% SCENARIOS_TO_PLOT) ->
+  best_models
+best_output %>%
+  filter(scenario %in% SCENARIOS_TO_PLOT) ->
+  best_output
+```
+
+```{r colors, echo=FALSE}
+CROP_COLORS <- c('#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#b15928')
+ET_COLORS <- c('Hybrid Perfect Adaptive' = '#7fc97f', 'Adaptive' = '#f0027f', 'Linear' = '#beaed4', 'Perfect' = '#fdc086','Hybrid Linear Adaptive' = '#386cb0', 'Obs' = 'black')
+ASSUME_COLORS <- c('Default' = '#f0027f', 'With Subsidy' = '#7fc97f', 'Same Parameters' = '#beaed4')
+OBJ_COLORS <- c('Default (nrms)' = '#f0027f', 'rms' = '#7fc97f', 'kge' = '#beaed4', 'bias' = '#fdc086')
+LTY_COLORS <- c('Default (All Crops)' = '#f0027f', 'Corn' = '#7fc97f', 'OilCrop' = '#beaed4', 'Wheat' = '#fdc086', 'OtherGrain' = '#386cb0')
+BY_COLORS <- c('Default (1990)' = '#f0027f', '1975' = '#7fc97f', '2005' = '#beaed4')
+```
+
+#### 1. Introduction
+
+```{r hist-land-crop, echo=FALSE, fig.width=10, fig.height=6, fig.cap="Harvested area by crop for major commodities in the United States (1975-2015). Source: USDA"}
+read.csv("./1-data/all_usda.csv") %>%
+  filter(Year %in% 1975:2015,
+         Type == "Harvested") ->
+  usda
+
+# =========
+# Plot harvested area time series
+x.label <- "Year"
+y.label <- expression(paste("Area (thous ", km^2, ")"))
+p <- ggplot() + geom_area(data=usda, aes(Year, Value, fill=GCAM_commodity))
+p <- p + xlab(x.label) + ylab(y.label)
+p <- p + scale_fill_manual(name="Commodity", values=CROP_COLORS)
+p <- p + theme( legend.text = element_text(size = 12),
+                legend.title = element_text(size = 14),
+                strip.text = element_text(size = 14, face="bold"), 
+                axis.text = element_text(size = 12), 
+                axis.title = element_text(size = 14) )
+print(p)
+```
+
+## 4. Results
+
+### 4.1. Parameter Sets that Minimize NRMS in gcamland
+
+```{r param-n-main, echo=FALSE}
+best_models %>%
+  filter(calibration.year == 1990,
+         comparison.years == "1990-2015",
+         comparison.landTypes == "All Crops",
+         assumption == "Default",
+         objfun == "nrms") ->
+  nrms
+```
+
+#### Values for paragraph on NRMS
+
+Smallest NRMS is `r round(min(nrms$landTypeMeanObjFunVal), 3)` with `r nrms[which.min(nrms$landTypeMeanObjFunVal), "expectation.type"]` expectations.
+
+Largest NRMS is `r round(max(nrms$landTypeMeanObjFunVal), 3)` with `r nrms[which.max(nrms$landTypeMeanObjFunVal), "expectation.type"]` expectations. 
+
+#### Parameters in Default Model
+
+```{r param-l-main, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.height=6, fig.cap="Parameters that minimize NRMSE by Expectation Type"}
+nrms %>%
+  select(expectation.type, logit.agforest, logit.afnonpast, logit.crop, share.old1, share.old2, share.old3, linear.years1, linear.years2, linear.years3) %>%
+  gather(parameter, value, -expectation.type) %>%
+  separate(parameter, into=c("param_type", "name")) %>%
+  mutate(param_type = if_else(param_type == "logit", "Logit Exponent", param_type),
+         param_type = if_else(param_type == "share", "Share of Past Information", param_type),
+         param_type = if_else(param_type == "linear", "Number of Years in Linear Forecast", param_type),
+         name = if_else(grepl("1", name), CROP_GROUP1, name),
+         name = if_else(grepl("2", name), CROP_GROUP2, name),
+         name = if_else(grepl("3", name), CROP_GROUP3, name),
+         name = if_else(name == "crop", "Cropland Nest", name),
+         name = if_else(name == "agforest", "Arable Land Nest", name),
+         name = if_else(name == "afnonpast", "Ag, Forest, and Other Nest", name)) ->
+  parameters
+
+parameters$name <- factor(parameters$name,levels=c( "Arable Land Nest", "Ag, Forest, and Other Nest", "Cropland Nest", CROP_GROUP1, CROP_GROUP2,  CROP_GROUP3))
+p <- ggplot() + geom_bar(data=parameters, aes(name, value, fill=expectation.type), stat="identity", position = "dodge")
+p <- p + facet_wrap(~param_type, scales="free", labeller = label_wrap_gen())
+p <- p + scale_fill_manual(name="Expectation Type", values=ET_COLORS)
+p <- p + theme(axis.text.x=element_text(angle=90,hjust=1))
+p <- p + xlab("") + ylab("Value (various units)")
+p <- p + theme( legend.text = element_text(size = 12),
+                legend.title = element_text(size = 14),
+                strip.text = element_text(size = 14, face="bold"), 
+                axis.text = element_text(size = 12), 
+                axis.title = element_text(size = 14) )
+print(p)
+```
+
+
+### 4.2. Comparing Modeled Land Area to Observations
+
+```{r crop-nrms, echo=FALSE}
+read.csv("./2-process/snyder_comparison_table.csv") %>%
+  filter(grepl("ThisPaper", Type)) ->
+  crop.nrms
+```
+
+
+#### Values for paragraph on crop-specific NRMS
+
+The NRMS for Corn and OilCrop are larger (`r round(crop.nrms[crop.nrms$crop == "Corn" & crop.nrms$Type == "ThisPaper_AllCrops", "value"],2)` and `r round(crop.nrms[crop.nrms$crop == "OilCrop" & crop.nrms$Type == "ThisPaper_AllCrops", "value"],2)`, respectively) than the NRMS for other Wheat and OtherGrain (`r round(crop.nrms[crop.nrms$crop == "Wheat" & crop.nrms$Type == "ThisPaper_AllCrops", "value"], 2)` and `r round(crop.nrms[crop.nrms$crop == "OtherGrain" & crop.nrms$Type == "ThisPaper_AllCrops", "value"], 2)`, respectively).
+
+#### Cropland area over time in default model
+
+```{r crop-ts-main, echo=FALSE, message=FALSE, fig.width=10, fig.height=6, fig.cap="Harvested cropland area (total and by crop) over time by expectation type. Black line is observations (FAO). Colored lines are gcamland results for the models that minimize NRMSE. The expectation type with the minimum NRMSE (Adaptive) is shown with a thicker line. Gray area is the range of all gcamland simulations. Note that fodder crops are included in gcamland but are excluded from total cropland area in this figure due to data limitations. "}
+# Calculate total cropland from the best default models
+best_output %>%
+  filter(calibration.year == 1990,
+         comparison.years == "1990-2015",
+         comparison.landTypes == "All Crops",
+         assumption == "Default",
+         objfun == "nrms") %>%
+  filter(GCAM_commodity %in% ALL_CROPS_NF) %>%
+  filter(scenario %in% SCENARIOS_TO_PLOT) %>%
+  group_by(scenario, year) %>%
+  summarize(harvested.land = sum(harvested.land)) %>%
+  ungroup() %>%
+  mutate(GCAM_commodity = "Cropland") ->
+  gcam
+
+best.type <- nrms[which.min(nrms$landTypeMeanObjFunVal), "expectation.type"]
+gcam %>%
+  filter(scenario == best.type) ->
+  gcam_best
+
+# Filter all outputs for the right information
+all_outputs %>%
+  mutate(name = if_else(name == "crops_nonfodder", "Cropland", name)) %>%
+  rename(GCAM_commodity = name) %>%
+  filter(GCAM_commodity %in% c("Cropland")) ->
+  gcam_ribbon
+
+# Filter obs data for the right information
+obs_data %>%
+  filter(region == "USA", 
+         GCAM_commodity %in% c("Cropland_Harvested"),
+         year %in% 1975:2015) %>%
+  mutate(GCAM_commodity = "Cropland") ->
+  obs
+
+y.label <- expression(paste("Area (thous ", km^2, ")"))
+p1 <- ggplot() + geom_ribbon(data=gcam_ribbon, aes(x=year, ymin=min_land, ymax=max_land), color="gray", alpha=0.2)
+p1 <- p1 + geom_line(data=obs, aes(year, area), color="black", size=2)
+p1 <- p1 + geom_line(data=gcam_best, aes(year, harvested.land, color=scenario), size=2)
+p1 <- p1 + geom_line(data=gcam, aes(year, harvested.land, color=scenario), size=1)
+p1 <- p1 + xlab("Year") + ylab(y.label) + scale_color_manual(name="Expectation Type", values=ET_COLORS)
+p1 <- p1 + facet_wrap(~GCAM_commodity, scales="free_y")
+p1 <- p1 + scale_x_continuous(breaks=seq(1975, 2010, 15)) 
+p1 <- p1 + coord_cartesian(ylim = c(0, 2000)) 
+p1 <- p1 + theme(legend.position = "none",
+                strip.text = element_text(size = 14, face="bold"), 
+                axis.text = element_text(size = 12), 
+                axis.title = element_text(size = 14) )
+
+# Repeat for specific crops
+all_outputs %>%
+  rename(GCAM_commodity = name) %>%
+  filter(GCAM_commodity %in% CROPS_TO_PLOT) ->
+  gcam_ribbon
+best_output %>%
+  filter(calibration.year == 1990,
+         comparison.years == "1990-2015",
+         comparison.landTypes == "All Crops",
+         assumption == "Default",
+         objfun == "nrms") %>%
+  filter(GCAM_commodity %in% CROPS_TO_PLOT) %>%
+  filter(scenario %in% SCENARIOS_TO_PLOT) ->
+  gcam
+gcam %>%
+  filter(scenario == best.type) ->
+  gcam_best
+obs_data %>%
+  filter(region == "USA", 
+         GCAM_commodity %in% CROPS_TO_PLOT,
+         year %in% 1975:2015) ->
+  obs
+
+y.label <- expression(paste("Area (thous ", km^2, ")"))
+p2 <- ggplot() + geom_ribbon(data=gcam_ribbon, aes(x=year, ymin=min_land, ymax=max_land), color="gray", alpha=0.2)
+p2 <- p2 + geom_line(data=obs, aes(year, area), color="black", size=2)
+p2 <- p2 + geom_line(data=gcam_best, aes(year, harvested.land, color=scenario), size=2)
+p2 <- p2 + geom_line(data=gcam, aes(year, harvested.land, color=scenario), size=1)
+p2 <- p2 + xlab("Year") + ylab("") + scale_color_manual(name="Expectation Type", values=ET_COLORS)
+p2 <- p2 + facet_wrap(~GCAM_commodity, scales="free_y")
+p2 <- p2 + scale_x_continuous(breaks=seq(1975, 2015, 15)) 
+p2 <- p2 + coord_cartesian(ylim = c(0, 500)) 
+p2 <- p2 + theme( legend.text = element_text(size = 12),
+                legend.title = element_text(size = 14),
+                strip.text = element_text(size = 14, face="bold"), 
+                axis.text = element_text(size = 12), 
+                axis.title = element_text(size = 14) )
+ 
+plot_grid(p1, p2, ncol = 2, rel_widths = c(1/3, 2/3))
+```
+
+## 5. Sensitivity Analysis
+
+### 5.1. Sensitivity to Model Assumptions
+
+
+```{r param-assume-sens, warning=FALSE, message=FALSE, echo=FALSE}
+best_models %>%
+  filter(calibration.year == 1990,
+         comparison.years == "1990-2015",
+         comparison.landTypes == "All Crops",
+         objfun == "nrms",
+         assumption != "5 year timestep") ->
+  TEMP
+TEMP %>% 
+  group_by(assumption, objfun, calibration.year, comparison.years, comparison.landTypes) %>%
+  summarize(landTypeMeanObjFunVal = min(landTypeMeanObjFunVal)) %>%
+  ungroup() %>%
+  left_join(select(TEMP, assumption, expectation.type, landTypeMeanObjFunVal), by=c("assumption", "landTypeMeanObjFunVal"))->
+  assumptions
+```
+
+#### Values for paragraph on assumption sensitivity
+
+Expectation type in default model = `r assumptions[assumptions$assumption == "Default", "expectation.type"]`
+
+Expectation type with subsidies = `r assumptions[assumptions$assumption == "With Subsidy", "expectation.type"]`
+
+Expectation type with same param = `r assumptions[assumptions$assumption == "Same Parameters", "expectation.type"]` 
+
+NRMS in default = `r round(assumptions[assumptions$assumption == "Default", "landTypeMeanObjFunVal"], 3)` 
+
+NRMS with subsidies =  `r round(assumptions[assumptions$assumption == "With Subsidy", "landTypeMeanObjFunVal"], 3)` 
+
+NRMS with same parameters `r round(assumptions[assumptions$assumption == "Same Parameters", "landTypeMeanObjFunVal"], 3)`). 
+
+#### Cropland with different assumptions
+
+```{r crop-assume-sens, echo=FALSE, fig.width=10, fig.height=6, fig.cap="Harvested area by crop under different model assumptions. Black line is observations (FAO). Colored lines are gcamland results for the models that minimize NRMSE."}
+assumptions %>%
+  select(assumption, expectation.type) %>%
+  rename(best.type = expectation.type) ->
+  best_assumptions
+
+best_output %>%
+  filter(calibration.year == 1990,
+         comparison.years == "1990-2015",
+         comparison.landTypes == "All Crops",
+         objfun == "nrms",
+         assumption != "5 year timestep") %>%
+  mutate(scenario = sub("Best_", "", scenario)) %>%
+  left_join(best_assumptions, by=c("assumption")) %>%
+  filter(scenario == best.type) %>%
+  filter(GCAM_commodity %in% CROPS_TO_PLOT) ->
+  gcam
+gcam %>%
+  filter(assumption == "Default") ->
+  gcam_default
+
+obs_data %>%
+  filter(region == "USA", 
+         GCAM_commodity %in% CROPS_TO_PLOT,
+         year %in% 1975:2015) ->
+  obs
+
+y.label <- expression(paste("Area (thous ", km^2, ")"))
+p <- ggplot() + geom_line(data=obs, aes(year, area), color="black", size=1.5)
+p <- p + geom_line(data=gcam_default, aes(year, harvested.land, color=assumption, lty=scenario), size=1.5)
+p <- p + geom_line(data=gcam, aes(year, harvested.land, color=assumption, lty=scenario), size=1)
+p <- p + xlab("Year") + ylab(y.label) + scale_color_manual(name="", values=ASSUME_COLORS)
+p <- p + facet_wrap(~GCAM_commodity, scales="free_y")
+p <- p + scale_x_continuous(breaks=seq(1975, 2015, 15)) 
+p <- p + coord_cartesian(ylim = c(0, 500)) 
+p <- p + theme( legend.text = element_text(size = 12),
+                legend.title = element_text(size = 14),
+                strip.text = element_text(size = 14, face="bold"), 
+                axis.text = element_text(size = 12), 
+                axis.title = element_text(size = 14) )
+print(p)
+```
+
+### 5.2. Sensitivity to the Objective Function
+
+
+#### 5.2.1. Optimizing for different objective functions
+
+
+```{r param-obj-sens, echo=FALSE, message=FALSE, warning=FALSE}
+best_models %>%
+  filter(calibration.year == 1990,
+         comparison.years == "1990-2015",
+         comparison.landTypes == "All Crops",
+         assumption == "Default") ->
+  TEMP
+TEMP %>% 
+  group_by(assumption, objfun, calibration.year, comparison.years, comparison.landTypes) %>%
+  summarize(landTypeMeanObjFunVal = min(landTypeMeanObjFunVal)) %>%
+  ungroup() %>%
+  left_join(select(TEMP, objfun, expectation.type, landTypeMeanObjFunVal), by=c("objfun", "landTypeMeanObjFunVal"))->
+  objective
+```
+
+#### Cropland area with different objective functions
+```{r crop-obj-sens, echo=FALSE, fig.width=10, fig.height=6, fig.cap="Harvested area by crop when optimizing for different objective functions. Colors indicate objective function. Line type indicates the expectation type that minimizes that objective function. Only the objective function minimizing expectation type is shown. Note that NRMSE and RMSE result in identical parameter sets in the default model and thus have identical land allocation in this figure."}
+objective %>%
+  select(objfun, expectation.type) %>%
+  rename(best.type = expectation.type) ->
+  best_assumptions
+
+best_output %>%
+  filter(calibration.year == 1990,
+         comparison.years == "1990-2015",
+         comparison.landTypes == "All Crops",
+         assumption == "Default") %>%
+  mutate(scenario = sub("Best_", "", scenario)) %>%
+  left_join(best_assumptions, by=c("objfun")) %>%
+  filter(scenario == best.type,
+         GCAM_commodity %in% CROPS_TO_PLOT) %>%
+  mutate(objfun = if_else(objfun == "nrms", "Default (nrms)", objfun)) ->
+  gcam
+gcam %>%
+  filter(objfun == "Default (nrms)") ->
+  gcam_default
+
+obs_data %>%
+  filter(region == "USA", 
+         GCAM_commodity %in% CROPS_TO_PLOT,
+         year %in% 1975:2015) ->
+  obs
+
+y.label <- expression(paste("Area (thous ", km^2, ")"))
+p <- ggplot() + geom_line(data=obs, aes(year, area), lty="solid", color="black", size=1.5)
+p <- p + geom_line(data=gcam_default, aes(year, harvested.land, color=objfun, lty=scenario), size=1.5)
+p <- p + geom_line(data=gcam, aes(year, harvested.land, color=objfun, lty=scenario), size=1)
+p <- p + xlab("Year") + ylab(y.label) + scale_color_manual(name="", values=OBJ_COLORS)
+p <- p + scale_linetype_manual(name="", values=c("solid", "dashed", "dotted"))
+p <- p + facet_wrap(~GCAM_commodity, scales="free_y")
+p <- p + scale_x_continuous(breaks=seq(1975, 2015, 15))  
+p <- p + coord_cartesian(ylim = c(0, 600)) 
+p <- p + guides(color = guide_legend(override.aes = list(size = 1)),
+         linetype = guide_legend(override.aes = list(size=1)),
+         size = FALSE)
+p <- p + theme( legend.text = element_text(size = 12),
+                legend.title = element_text(size = 14),
+                legend.key.size = unit(1, 'cm'),
+                strip.text = element_text(size = 14, face="bold"), 
+                axis.text = element_text(size = 12), 
+                axis.title = element_text(size = 14) )
+print(p)
+```
+
+#### 5.2.2. Optimizing for different land types
+
+#### Values for paragraph on NRMS
+
+NRMS for Corn is reduced from `r round(crop.nrms[crop.nrms$crop == "Corn" & crop.nrms$Type == "ThisPaper_AllCrops", "value"],2)` to `r round(crop.nrms[crop.nrms$crop == "Corn" & crop.nrms$Type == "ThisPaper_SingleCrop", "value"],2)` when we go from minimizing NRMS across all crops to minimizing NRMS for Corn only. 
+
+NRMS for OilCrop is reduced from `r round(crop.nrms[crop.nrms$crop == "OilCrop" &crop.nrms$Type == "ThisPaper_AllCrops", "value"],2)` to `r round(crop.nrms[crop.nrms$crop == "OilCrop" &crop.nrms$Type == "ThisPaper_SingleCrop", "value"],2)` when we go from minimizing NRMS across all crops to minimizing NRMS for OilCrop only. 
+
+Optimizing for a single crop has less effect on the NRMS for Wheat and OtherGrain (from `r round(crop.nrms[crop.nrms$crop == "Wheat" &crop.nrms$Type == "ThisPaper_AllCrops", "value"],2)` to `r round(crop.nrms[crop.nrms$crop == "Wheat" &crop.nrms$Type == "ThisPaper_SingleCrop", "value"],2)` for Wheat, and from `r round(crop.nrms[crop.nrms$crop == "OtherGrain" &crop.nrms$Type == "ThisPaper_AllCrops", "value"],2)` to `r round(crop.nrms[crop.nrms$crop == "OtherGrain" &crop.nrms$Type == "ThisPaper_SingleCrop", "value"],2)` for OtherGrain), most likely because the performance in the all crops is sufficiently good.
+
+```{r param-lty-sens, echo=FALSE, message=FALSE, warning=FALSE}
+best_models %>%
+  filter(calibration.year == 1990,
+         comparison.years == "1990-2015",
+         assumption == "Default",
+         objfun == "nrms",
+         comparison.landTypes != "Crops, excluding PalmFruit") ->
+  TEMP
+TEMP %>% 
+  group_by(assumption, objfun, calibration.year, comparison.years, comparison.landTypes) %>%
+  summarize(landTypeMeanObjFunVal = min(landTypeMeanObjFunVal)) %>%
+  ungroup() %>%
+  left_join(select(TEMP, comparison.landTypes, expectation.type, landTypeMeanObjFunVal), by=c("comparison.landTypes", "landTypeMeanObjFunVal"))->
+  lty_param
+```
+
+
+#### Cropland area when optimizing for different land types
+
+```{r crop-lty-sens, echo=FALSE, fig.width=10, fig.height=6, fig.cap="Harvested area by crop when optimizing for different land types. Colors indicate crops included in the objective function. Line type indicates the expectation type that minimizes NRMSE for that set of crops. Only the NRMSE minimizing expectation type for each set of crops is shown."}
+lty_param %>%
+  select(comparison.landTypes, expectation.type) %>%
+  rename(best.type = expectation.type) ->
+  best_assumptions
+
+best_output %>%
+  filter(calibration.year == 1990,
+         comparison.years == "1990-2015",
+         assumption == "Default",
+         objfun == "nrms",
+         comparison.landTypes != "Crops, excluding PalmFruit") %>%
+  mutate(scenario = sub("Best_", "", scenario)) %>%
+  left_join(best_assumptions, by=c("comparison.landTypes")) %>%
+  filter(GCAM_commodity %in% CROPS_TO_PLOT,
+         scenario == best.type) %>%
+  mutate(comparison.landTypes = if_else(comparison.landTypes == "All Crops", "Default (All Crops)", comparison.landTypes) )->
+  gcam
+gcam %>%
+  filter(comparison.landTypes == "Default (All Crops)") ->
+  gcam_default
+
+obs_data %>%
+  filter(region == "USA", 
+         GCAM_commodity %in% CROPS_TO_PLOT,
+         year %in% 1975:2015) ->
+  obs
+
+y.label <- expression(paste("Area (thous ", km^2, ")"))
+p <- ggplot() + geom_line(data=gcam_default, aes(year, harvested.land, color=comparison.landTypes, lty=scenario), size=1.5)
+p <- p + geom_line(data=obs, aes(year, area), color="black", size=1.5)
+p <- p + geom_line(data=gcam, aes(year, harvested.land, color=comparison.landTypes, lty=scenario), size=1)
+p <- p + xlab("Year") + ylab(y.label) + scale_color_manual(name="", values=LTY_COLORS)
+p <- p + scale_linetype_manual(name="", values=c("solid", "dashed", "dotted"))
+p <- p + facet_wrap(~GCAM_commodity)
+p <- p + scale_x_continuous(breaks=seq(1975, 2015, 15))  
+p <- p + coord_cartesian(ylim = c(0, 650)) 
+p <- p + guides(color = guide_legend(override.aes = list(size = 1)),
+         linetype = guide_legend(override.aes = list(size=1)),
+         size = FALSE)
+p <- p + theme( legend.text = element_text(size = 12),
+                legend.title = element_text(size = 14),
+                legend.key.size = unit(1, 'cm'),
+                strip.text = element_text(size = 14, face="bold"), 
+                axis.text = element_text(size = 12), 
+                axis.title = element_text(size = 14) )
+print(p)
+```
+
+### 5.3. Different calibration years
+
+
+```{r param-time-sens, echo=FALSE, warning=FALSE, message=FALSE}
+best_models %>%
+  filter(comparison.landTypes == "All Crops",
+         comparison.years == paste(calibration.year, "-2015", sep=""),
+         assumption == "Default",
+         objfun == "nrms") ->
+  TEMP
+TEMP %>% 
+  group_by(assumption, objfun, calibration.year, comparison.years, comparison.landTypes) %>%
+  summarize(landTypeMeanObjFunVal = min(landTypeMeanObjFunVal)) %>%
+  ungroup() %>%
+  left_join(select(TEMP, calibration.year, expectation.type, landTypeMeanObjFunVal), by=c("calibration.year", "landTypeMeanObjFunVal"))->
+  calibYear
+```
+
+#### Cropland area with different calibration years
+
+```{r crop-time-sens, echo=FALSE, fig.width=10, fig.height=6, fig.cap="Harvested area by crop when using different calibration years. Colors indicate calibration year. Line type indicates the expectation type that minimizes that NRMSE for that calibration year. Only the NRMSE minimizing expectation type for each calibration year is shown."}
+calibYear %>%
+  select(calibration.year, expectation.type) %>%
+  rename(best.type = expectation.type) ->
+  best_assumptions
+
+best_output %>%
+  filter(comparison.landTypes == "All Crops",
+         comparison.years == paste(calibration.year, "-2015", sep=""),
+         assumption == "Default",
+         objfun == "nrms") %>%
+  mutate(scenario = sub("Best_", "", scenario)) %>%
+  left_join(best_assumptions, by=c("calibration.year")) %>%
+  filter(GCAM_commodity %in% CROPS_TO_PLOT,
+         scenario == best.type) %>%
+  mutate(calibration.year = if_else(calibration.year == 1990, "Default (1990)", as.character(calibration.year))) ->
+  gcam
+gcam %>%
+  filter(calibration.year == "Default (1990)") ->
+  gcam_default
+
+obs_data %>%
+  filter(region == "USA", 
+         GCAM_commodity %in% CROPS_TO_PLOT,
+         year %in% 1975:2015) ->
+  obs
+
+y.label <- expression(paste("Area (thous ", km^2, ")"))
+p <- ggplot() + geom_line(data=obs, aes(year, area), color="black", size=1.5)
+p <- p + geom_line(data=gcam_default, aes(year, harvested.land, color=as.factor(calibration.year), lty=scenario), size=1.5)
+p <- p + geom_line(data=gcam, aes(year, harvested.land, color=as.factor(calibration.year), lty=scenario), size=1)
+p <- p + xlab("Year") + ylab(y.label) + scale_color_manual(name="", values=BY_COLORS)
+p <- p + facet_wrap(~GCAM_commodity)
+p <-  p + scale_x_continuous(breaks=seq(1975, 2015, 15)) 
+p <- p + coord_cartesian(ylim = c(0, 500)) 
+p <- p + scale_linetype_manual(name="", values=c("solid", "dashed", "dotted"))
+p <- p + guides(color = guide_legend(override.aes = list(size = 1)),
+         linetype = guide_legend(override.aes = list(size=1)),
+         size = FALSE)
+p <- p + theme( legend.text = element_text(size = 12),
+                legend.title = element_text(size = 14),
+                legend.key.size = unit(1, 'cm'),
+                strip.text = element_text(size = 14, face="bold"), 
+                axis.text = element_text(size = 12), 
+                axis.title = element_text(size = 14) )
+print(p)
+```
+
+
+
