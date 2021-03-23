@@ -1,4 +1,5 @@
-<!--your zenodo badge here-->
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4631131.svg)](https://doi.org/10.5281/zenodo.4631131)
+
 
 # calvin-etal_2021_gmd
 **Modeling Land Use and Land Cover Change: Using a Hindcast to Estimate Economic Parameters in gcamland v2.0**
