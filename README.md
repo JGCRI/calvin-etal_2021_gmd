@@ -15,10 +15,11 @@ The world has experienced a vast increase in agricultural production since the m
 Calvin, K. V., Snyder, A., Zhao, X., and Wise, M.: Modeling Land Use and Land Cover Change: Using a Hindcast to Estimate Economic Parameters in gcamland v2.0, Geosci. Model Dev. Discuss. [preprint], https://doi.org/10.5194/gmd-2020-338, in review, 2020.
 
 ## Data reference
+### Input data
 All `gcamland` input data is contained in the `gcamland` repository. See data in v2.0 as cited in the contributing models section below.
 
 ### Output data
-Reference for each minted data source for your output data.  
+Katherine V. Calvin, Abigail Snyder, Xin Zhao, & Marshall Wise. (2021). DATASET: Modeling Land Use and Land Cover Change: Using a Hindcast to Estimate Economic Parameters in gcamland v2.0 (Version v1.0) [Data set]. Zenodo. http://doi.org/10.5281/zenodo.4630418  
 
 ## Contributing models
 | Model | Version | Repository Link | DOI | Notes |
