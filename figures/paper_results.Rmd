@@ -122,11 +122,11 @@ nrms %>%
          name = if_else(grepl("2", name), CROP_GROUP2, name),
          name = if_else(grepl("3", name), CROP_GROUP3, name),
          name = if_else(name == "crop", "Cropland Nest", name),
-         name = if_else(name == "agforest", "Arable Land Nest", name),
+         name = if_else(name == "agforest", "Dynamic Land Nest", name),
          name = if_else(name == "afnonpast", "Ag, Forest, and Other Nest", name)) ->
   parameters
 
-parameters$name <- factor(parameters$name,levels=c( "Arable Land Nest", "Ag, Forest, and Other Nest", "Cropland Nest", CROP_GROUP1, CROP_GROUP2,  CROP_GROUP3))
+parameters$name <- factor(parameters$name,levels=c( "Dynamic Land Nest", "Ag, Forest, and Other Nest", "Cropland Nest", CROP_GROUP1, CROP_GROUP2,  CROP_GROUP3))
 p <- ggplot() + geom_bar(data=parameters, aes(name, value, fill=expectation.type), stat="identity", position = "dodge")
 p <- p + facet_wrap(~param_type, scales="free", labeller = label_wrap_gen())
 p <- p + scale_fill_manual(name="Expectation Type", values=ET_COLORS)
@@ -413,7 +413,7 @@ best_models %>%
          comparison.years == "1990-2015",
          assumption == "Default",
          objfun == "nrms",
-         comparison.landTypes != "Crops, excluding PalmFruit") ->
+         !(comparison.landTypes %in% c("Crops, excluding PalmFruit", "All dynamic land types"))) ->
   TEMP
 TEMP %>% 
   group_by(assumption, objfun, calibration.year, comparison.years, comparison.landTypes) %>%
@@ -423,6 +423,7 @@ TEMP %>%
   lty_param
 ```
 
+Including land cover types increases NRMSE from `r round(lty_param[lty_param$comparison.landTypes == "All Crops" & lty_param$expectation.type == "Adaptive", "landTypeMeanObjFunVal"],2)` to `r round(best_models[best_models$comparison.landTypes == "All dynamic land types" & best_models$expectation.type == "Adaptive", "landTypeMeanObjFunVal"],2)`. However, parameters do not change. For example, the logit exponent over the dynamic land nest is `r best_models[best_models$comparison.landTypes == "All Crops" & best_models$expectation.type == "Adaptive" & best_models$calibration.year == 1990 & best_models$objfun == "nrms" & best_models$assumption == "Default", "logit.agforest"]` in the default model and `r best_models[best_models$comparison.landTypes == "All dynamic land types" & best_models$expectation.type == "Adaptive" & best_models$calibration.year == 1990 & best_models$objfun == "nrms", "logit.agforest"]` when all dynamic land types are included in the NRMSE calculation.
 
 #### Cropland area when optimizing for different land types
 
@@ -437,7 +438,7 @@ best_output %>%
          comparison.years == "1990-2015",
          assumption == "Default",
          objfun == "nrms",
-         comparison.landTypes != "Crops, excluding PalmFruit") %>%
+         !(comparison.landTypes %in% c("Crops, excluding PalmFruit", "All dynamic land types"))) %>%
   mutate(scenario = sub("Best_", "", scenario)) %>%
   left_join(best_assumptions, by=c("comparison.landTypes")) %>%
   filter(GCAM_commodity %in% CROPS_TO_PLOT,
@@ -447,7 +448,7 @@ best_output %>%
 gcam %>%
   filter(comparison.landTypes == "Default (All Crops)") ->
   gcam_default
-
+write.csv(gcam, "~/Documents/gcamland.csv", row.names=FALSE)
 obs_data %>%
   filter(region == "USA", 
          GCAM_commodity %in% CROPS_TO_PLOT,

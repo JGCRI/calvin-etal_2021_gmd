@@ -42,7 +42,7 @@ readRDS("./1-data/grand_table_1990.rds") %>%
 
 # Determine best model
 table <- minimize_objective(grand_table_1990, objfun_to_min = "nrms")
-best_allCrop <- table[which.min(table$landTypeMeanObjFunVal), ]
+best_allCrop <- table[table$expectation.type == "Lagged", ]
 
 grand_table_1990 %>% 
   filter(expectation.type == best_allCrop$expectation.type[1],

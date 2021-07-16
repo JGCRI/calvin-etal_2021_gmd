@@ -84,12 +84,17 @@ for( o in objectiveFunctions) {
 
 # =========
 # Calculate parameter sets that minimize nrms for different combinations of land types
-landTypes <- c("Corn", "OilCrop", "Wheat", "OtherGrain", "Crops, excluding PalmFruit")
+landTypes <- c("Corn", "OilCrop", "Wheat", "OtherGrain", "Crops, excluding PalmFruit", "All dynamic land types")
 for( l in landTypes) {
   if( l == "Crops, excluding PalmFruit") {
     table <- minimize_objective(grand_table_1990, objfun_to_min = "nrms", landtypes = c( "Corn", "FiberCrop", "MiscCrop", "OilCrop",
                                                                                          "OtherGrain", "Rice", "Root_Tuber",
                                                                                          "SugarCrop",  "Wheat"))
+  } else if( l == "All dynamic land types") {
+    table <- minimize_objective(grand_table_1990, objfun_to_min = "nrms", landtypes = c( "Corn", "FiberCrop", "MiscCrop", "OilCrop",
+                                                                                         "OtherGrain", "Rice", "Root_Tuber",
+                                                                                         "SugarCrop",  "Wheat",
+                                                                                         "Grassland", "Shrubland", "Forest"))
   } else {
     table <- minimize_objective(grand_table_1990, objfun_to_min = "nrms", landtypes = c(l))  
   }
