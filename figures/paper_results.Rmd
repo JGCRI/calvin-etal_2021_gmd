@@ -86,6 +86,7 @@ p <- p + theme( legend.text = element_text(size = 12),
                 axis.text = element_text(size = 12), 
                 axis.title = element_text(size = 14) )
 print(p)
+ggsave("./4-figures/Figure1.png", dpi=500, height=6, width=10)
 ```
 
 ## 4. Results
@@ -138,6 +139,7 @@ p <- p + theme( legend.text = element_text(size = 12),
                 axis.text = element_text(size = 12), 
                 axis.title = element_text(size = 14) )
 print(p)
+ggsave("./4-figures/Figure3.png", dpi=500, height=6, width=10)
 ```
 
 
@@ -169,7 +171,7 @@ best_output %>%
   group_by(scenario, year) %>%
   summarize(harvested.land = sum(harvested.land)) %>%
   ungroup() %>%
-  mutate(GCAM_commodity = "Cropland") ->
+  mutate(GCAM_commodity = "Harvested crop area") ->
   gcam
 
 best.type <- nrms[which.min(nrms$landTypeMeanObjFunVal), "expectation.type"]
@@ -179,9 +181,9 @@ gcam %>%
 
 # Filter all outputs for the right information
 all_outputs %>%
-  mutate(name = if_else(name == "crops_nonfodder", "Cropland", name)) %>%
+  mutate(name = if_else(name == "crops_nonfodder", "Harvested crop area", name)) %>%
   rename(GCAM_commodity = name) %>%
-  filter(GCAM_commodity %in% c("Cropland")) ->
+  filter(GCAM_commodity %in% c("Harvested crop area")) ->
   gcam_ribbon
 
 # Filter obs data for the right information
@@ -189,7 +191,7 @@ obs_data %>%
   filter(region == "USA", 
          GCAM_commodity %in% c("Cropland_Harvested"),
          year %in% 1975:2015) %>%
-  mutate(GCAM_commodity = "Cropland") ->
+  mutate(GCAM_commodity = "Harvested crop area") ->
   obs
 
 y.label <- expression(paste("Area (thous ", km^2, ")"))
@@ -245,6 +247,7 @@ p2 <- p2 + theme( legend.text = element_text(size = 12),
                 axis.title = element_text(size = 14) )
  
 plot_grid(p1, p2, ncol = 2, rel_widths = c(1/3, 2/3))
+ggsave("./4-figures/Figure4.png", dpi=500, height=6, width=10)
 ```
 
 ## 5. Sensitivity Analysis
@@ -325,6 +328,7 @@ p <- p + theme( legend.text = element_text(size = 12),
                 axis.text = element_text(size = 12), 
                 axis.title = element_text(size = 14) )
 print(p)
+ggsave("./4-figures/Figure5.png", dpi=500, height=6, width=10)
 ```
 
 ### 5.2. Sensitivity to the Objective Function
@@ -395,6 +399,7 @@ p <- p + theme( legend.text = element_text(size = 12),
                 axis.text = element_text(size = 12), 
                 axis.title = element_text(size = 14) )
 print(p)
+ggsave("./4-figures/Figure6.png", dpi=500, height=6, width=10)
 ```
 
 #### 5.2.2. Optimizing for different land types
@@ -474,6 +479,7 @@ p <- p + theme( legend.text = element_text(size = 12),
                 axis.text = element_text(size = 12), 
                 axis.title = element_text(size = 14) )
 print(p)
+ggsave("./4-figures/Figure7.png", dpi=500, height=6, width=10)
 ```
 
 ### 5.3. Different calibration years
@@ -542,6 +548,7 @@ p <- p + theme( legend.text = element_text(size = 12),
                 axis.text = element_text(size = 12), 
                 axis.title = element_text(size = 14) )
 print(p)
+ggsave("./4-figures/Figure8.png", dpi=500, height=6, width=10)
 ```
 
 

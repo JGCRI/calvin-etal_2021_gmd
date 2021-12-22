@@ -74,7 +74,7 @@ ASSUME_COLORS <- c('Default' = '#f0027f', 'With Subsidy' = '#7fc97f', 'Same Para
 OBJ_COLORS <- c('nrms' = '#f0027f', 'rms' = '#7fc97f', 'kge' = '#beaed4', 'bias' = '#fdc086')
 LTY_COLORS <- c('All Crops' = '#f0027f', 'Corn' = '#7fc97f', 'OilCrop' = '#beaed4', 'Wheat' = '#fdc086', 'OtherGrain' = '#386cb0')
 BY_COLORS <- c('1990' = '#f0027f', '1975' = '#7fc97f', '2005' = '#beaed4')
-CALIB_COLORS <- c('Base Year = 1990' = '#f0027f', 'Base Year = 1975' = '#7fc97f', 'Base Year = 2005' = '#beaed4')
+CALIB_COLORS <- c('Initial Model Year = 1990' = '#f0027f', 'Initial Model Year = 1975' = '#7fc97f', 'Initial Model Year = 2005' = '#beaed4')
 TIME_COLORS <- c('Default (NRMSE)' = '#f0027f', 'Default (RMSE)' = '#e78ac3', '5 year timestep (NRMSE)' = '#ccebc5', '5 year timestep (RMSE)' = '#1b9e77')
 TS_COLORS <- c('1 year timestep' = '#f0027f', '5 year timestep' = '#fdc086')
 ```
@@ -568,6 +568,16 @@ print(p)
 ggsave("./4-figures/AllLand.png", height = 9, width = 14, units='in')
 ```
 
+
+```{r save-results, echo=FALSE}
+gcam %>%
+  select(scenario, objfun, calibration.year, comparison.years, comparison.landTypes, assumption, GCAM_commodity, year, land.allocation, harvested.land) %>%
+  rename(physical.land = land.allocation,
+         expectation.type = scenario) ->
+  gcam_save
+write.csv(gcam_save, "./4-figures/all_land_results.csv", row.names = FALSE)
+```
+
 We see similar results when comparing shares of harvested area by crop to observations (Figure \@ref(fig:crop-sts-sm)) as shown when comparing absolute land area. 
 
 ```{r crop-sts-sm, echo=FALSE, fig.width=10, fig.height=6, fig.cap="Cropland Share over Time by Crop and Expectation Type"}
@@ -816,7 +826,7 @@ best_models %>%
   left_join(best_assumptions, by=c("calibration.year")) %>%
   filter(expectation.type == best.type) %>%
   select(-best.type, -landTypeMeanObjFunVal) %>%
-  mutate(id = paste("Base Year =", calibration.year)) ->
+  mutate(id = paste("Initial Model Year =", calibration.year)) ->
   calibration
 
 calibration %>%
@@ -1302,4 +1312,23 @@ table %>%
 knitr::kable(table, caption="Relative and absolute error by crop and expectation type. Values indicate the median and range across years for each commodity and expectation type.")
 ```
 
+```{r save-1990-info, echo=FALSE, message=FALSE}
+# Select the default model
+best_output %>%
+  filter(calibration.year == 1990,
+         comparison.years == "1990-2015",
+         comparison.landTypes == "All Crops",
+         assumption == "Default",
+         objfun == "nrms") %>%
+  filter(year == 1990,
+         scenario == "Adaptive") %>%
+  mutate(calibratedProfit = expectedProfit * shareWeight) %>%
+  select(scenario, year, GCAM_commodity, land.allocation, harvested.land, expectedProfit, calibratedProfit) %>%
+  rename(`Physical land` = land.allocation,
+         `Harvested land` = harvested.land,
+         `Read In Profit` = expectedProfit,
+         `Calibrated Profit` = calibratedProfit) ->
+  data_1990
+write.csv(data_1990, "./4-figures/1990_data.csv", row.names = FALSE)
+```
 
